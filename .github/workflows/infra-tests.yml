@@ -1,7 +1,5 @@
 name: Infrastructure Tests
-
 on: push
-
 jobs:
   terrascan:
     name: "Run Terrascan"
@@ -21,7 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+#      contents: read
+      contents: write # For code prettier
+
     steps:
       - uses: actions/checkout@v2
 
