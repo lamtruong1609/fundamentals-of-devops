@@ -1,0 +1,90 @@
+- name: Deploy an EC2 instance in AWS
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ./group_vars/ch2_instances.yml
+  environment:
+    AWS_REGION: us-east-2
+  tasks:
+    - name: create VPC
+      amazon.aws.ec2_vpc_net:
+        name: "{{ vpc_name }}"
+        cidr_block: "{{ vpc_cidr }}"
+        region: "{{ region }}"
+        state: present
+#          aws_access_key: "{{ aws_access_key }}"
+#          aws_secret_key: "{{ aws_secret_key }}"
+      register: vpc
+    - name: "set fact: VPC ID"
+      set_fact:
+        vpc_id: "{{ vpc.vpc.id }}"
+    - name: associate subnet to the VPC
+      amazon.aws.ec2_vpc_subnet:
+        state: present
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        cidr: "{{ subnet_cidr }}"
+#        aws_access_key: "{{ aws_access_key }}"
+#        aws_secret_key: "{{ aws_secret_key }}"
+        map_public: yes
+        resource_tags:
+          Name: "{{ subnet_name }}"
+      register: subnet
+
+    - name: create IGW
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+#        aws_access_key: "{{ aws_access_key }}"
+#        aws_secret_key: "{{ aws_secret_key }}"
+        state: "present"
+        tags:
+          Name: "{{ igw_name }}"
+      register: igw
+    - name: Route IGW
+      ec2_vpc_route_table:
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+#        aws_access_key: "{{ aws_access_key }}"
+#        aws_secret_key: "{{ aws_secret_key }}"
+        subnets:
+          - "{{ subnet.subnet.id }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw.gateway_id  }}"
+        tags:
+          Name: "{{ route_name }}"
+    - name: Create security group
+      amazon.aws.ec2_security_group:
+        name: sample-app-ansible
+        description: Allow HTTP and SSH traffic
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+#        aws_access_key: "{{ aws_access_key }}"
+#        aws_secret_key: "{{ aws_secret_key }}"
+        rules:
+          - proto: tcp
+            ports: [8080]
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            ports: [22]
+            cidr_ip: 0.0.0.0/0
+      register: aws_security_group
+
+    - name: Create a new EC2 key pair
+      amazon.aws.ec2_key:
+        name: ansible-ch2
+        file_name: ansible-ch2.key
+      no_log: true
+      register: aws_ec2_key_pair
+
+    - name: Create EC2 instance with Amazon Linux 2003
+      amazon.aws.ec2_instance:
+        name: sample-app-ansible
+        key_name: "{{ aws_ec2_key_pair.key.name }}"
+        instance_type: t2.micro
+        security_group: "{{ aws_security_group.group_id }}"
+        vpc_subnet_id: "{{ subnet.subnet.id }}"
+        image_id: ami-0900fe555666598a2
+        tags:
+          Ansible: ch2_instances
