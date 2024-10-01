@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "test_serverless_app" {
       "iam:UpdateRole",
       "iam:PassRole",
       "iam:List*Role*",
-      "iam:PutRolePolicy",
+      "iam:Put*Role*",
       "iam:Get*Role*"
     ]
     resources = ["arn:aws:iam::*:role/${var.lambda_base_name}*"]
