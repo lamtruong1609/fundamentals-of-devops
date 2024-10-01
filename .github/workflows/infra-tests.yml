@@ -39,3 +39,13 @@ jobs:
         run: |
           tofu init -backend=false -input=false
           tofu test -verbose
+
+      - name: Tofu Prettier
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ch5/tofu/live/lambda-sample
+        run: tofu fmt
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        with:
+          commit_message: "Automated Change - style: format files"
